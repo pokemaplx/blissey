@@ -18,7 +18,7 @@ source /blissey/lib/common.sh
 source /blissey/lib/config.sh
 load_config
 
-echo "Blissey starting (TZ=${TZ:-UTC}, data dir $BLISSEY_DATA_DIR)"
+echo "Blissey starting (local time $(date '+%Y-%m-%d %H:%M %Z'), data dir $BLISSEY_DATA_DIR)"
 for attempt in $(seq 1 30); do
   if mysql_blissey -NB -e "select 1" > /dev/null 2>&1; then
     break
