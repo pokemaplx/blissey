@@ -34,8 +34,9 @@ koji_project = ""         # Koji project that contains the quest fences (usually
 # and background token times, invasions, fort workers. Short sessions (lowDuration) are read
 # from Dragonite's stats_accounts table when it exists.
 parse_log = true
-# Folder that contains dragonite.log (and the rotated dragonite-*.gz files).
-# Docker: mount it at /dragonite/logs and keep this value.
+# Folder that contains dragonite.log (and the rotated dragonite-*.gz files), as seen by Blissey.
+# Docker: keep this value; the host folder is chosen with DRAGONITE_LOGS in .env, which
+# docker-compose mounts here. Manual install: the real path, e.g. "/opt/dragonite/logs".
 log_dir = "/dragonite/logs"
 # Dragonite API, used to request the hourly log rotation
 api_host = "127.0.0.1"
