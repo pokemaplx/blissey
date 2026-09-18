@@ -1,0 +1,91 @@
+# Blissey configuration. Copy to config.toml next to this file.
+# Old config.ini files can be converted with:  bin/blissey migrate-config config.ini > config.toml
+
+[database]
+# The user needs full rights on the stats database and SELECT on the Dragonite and Golbat
+# databases (plus SELECT on the Koji database when geofences.use_koji = true).
+host = "127.0.0.1"
+port = 3306
+user = ""
+password = ""
+dragonite = "dragonite"   # Dragonite database name
+golbat = "golbat"         # Golbat database name
+stats = "stats"           # Blissey's own database (must exist, tables are created by `blissey setup`)
+koji = "koji"             # only used when geofences.use_koji = true
+# Golbat's database on another server: leave empty when it runs on `host`. When set, the raw
+# mon/quest data is read from this host (same port and credentials).
+golbat_host = ""
+
+[processing]
+worker_stats = true       # dragonite.stats_workers -> stats_worker (Dragonite config: stats = true)
+mon_area_stats = true     # golbat.pokemon_area_stats -> stats_mon_area (Golbat needs area fences)
+quest_area_stats = true   # golbat.pokestop x quest fences -> stats_quest_area
+account_stats = true      # dragonite.account -> accounts (every 15 minutes)
+fortwatcher = false       # aggregate table stats_forts written by Fortwatcher
+
+[geofences]
+# true : read mon and quest fences from Koji's database
+# false: use the fences in table `geofences` of the stats database (see README)
+use_koji = false
+koji_project = ""         # Koji project that contains the quest fences (usually your Dragonite project)
+
+[dragonite]
+# Parse logs/dragonite.log every 5 minutes: RPC status codes, account switches, auth/remote-auth
+# and background token times, invasions, fort workers. Short sessions (lowDuration) are read
+# from Dragonite's stats_accounts table when it exists.
+parse_log = true
+# Folder that contains dragonite.log (and the rotated dragonite-*.gz files).
+# Docker: mount it at /dragonite/logs and keep this value.
+log_dir = "/dragonite/logs"
+# Dragonite API, used to request the hourly log rotation
+api_host = "127.0.0.1"
+api_port = 7272
+# Fort area names whose workers are counted separately, e.g. ["fortsRoute1", "fortsRoute2"]
+fort_areas = []
+# Invasion worker name whose lines are counted separately
+invasion_worker = ""
+
+[rotom]
+# Every 5 minutes post the devices that did not send data in the last 3 minutes to Discord
+outage_report = false
+discord_webhook = ""
+# Rotom API (also used by tools/jobexecutor)
+api_host = "127.0.0.1"
+api_port = 7072
+
+[backups]
+# Daily, stored in data/backups. Golbat: structure + routines and the gym/pokestop/spawnpoint
+# tables. Dragonite: full dump.
+golbat = true
+golbat_days = 7
+dragonite = true
+dragonite_days = 7
+
+[retention]
+# Days to keep, per interval; 0 = keep forever.
+stats         = { rpl5 = 30, rpl15 = 90, rpl60 = 180, rpl1440 = 365, rpl10080 = 0 }   # stats_worker / stats_mon_area / stats_quest_area
+dragonite_log = { rpl5 = 30, rpl15 = 90, rpl60 = 180, rpl1440 = 365, rpl10080 = 0 }   # dragoLog*, stats_invasion, stats_worker_fort, stats_prioraid
+accounts = 90             # table accounts (15 minute snapshots of dragonite.account)
+stats_account = 90        # legacy table stats_account (no longer filled)
+# Raw source tables: dragonite.stats_workers and golbat.pokemon_area_stats
+raw_workers = 1
+raw_areas = 1
+
+[multi_instance]
+# Several Blissey installs (one per Dragonite/Golbat stack, same database server) sum their
+# rpl 5 data into one central database (dashboards in grafana/dashboards/multi-instance).
+# Exactly one instance is the master: it creates the central tables, aggregates them to
+# 15/60/1440/10080 and applies retention. See README.
+enabled = false
+role = "master"           # master or slave
+database = "allblissey"   # central database (must exist)
+user = ""                 # credentials for the central database (empty = database.user/password)
+password = ""
+
+[koji]
+# Only used by tools/koji/koji.py, which generates `geofences` inserts through the Koji HTTP API
+# (an alternative to geofences.use_koji when the SQL user must not read the Koji database).
+api_url = "http://127.0.0.1:8080"
+api_token = ""
+mon_project = "golbat"        # Koji project with the mon fences (parent = area, fence name = sub fence)
+quest_project = "dragonite"   # Koji project with the quest fences

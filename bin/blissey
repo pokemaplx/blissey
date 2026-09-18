@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# Blissey command line. Both the host crontab and the Docker image call this script.
+#
+#   blissey setup       create/upgrade tables and procedures (idempotent)
+#   blissey geofences   compute geometry, km2 and timezone of the fences in table geofences
+#   blissey check       validate config.toml, dependencies and database access
+#   blissey run <rpl>   process one interval now (5, 15, 60, 1440 or 10080)
+#   blissey tick        cron entry point: runs every interval that is due at this minute
+#   blissey logrotate   ask Dragonite to rotate its log
+#   blissey crontab     print the crontab line for manual (non-Docker) installs
+#   blissey migrate-config <config.ini>   print the config.toml equivalent of an old config.ini
+
+BLISSEY_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+export BLISSEY_ROOT
+
+# shellcheck source=../lib/common.sh
+source "$BLISSEY_ROOT/lib/common.sh"
+for _lib in config setup geofences interval dragolog maintenance; do
+  # shellcheck source=/dev/null
+  source "$BLISSEY_ROOT/lib/$_lib.sh"
+done
+
+usage() {
+  cat <<EOF
+Usage: blissey <command>
+
+  setup        create/upgrade tables and stored procedures (safe to rerun)
+  geofences    fill st/st_lonlat, km2, utcoffset and country in table geofences
+  check        validate config.toml, required commands and database access
+  run <rpl>    process one interval now: 5, 15, 60, 1440 or 10080
+  tick         cron entry point, decides which intervals are due (every 5 minutes)
+  logrotate    request a Dragonite log rotation
+  crontab      print the crontab line for a manual install
+  migrate-config <config.ini>
+               print the config.toml equivalent of an old config.ini
+
+Environment: BLISSEY_CONFIG, BLISSEY_DATA_DIR, BLISSEY_LOG_STDOUT=1, BLISSEY_DRY_RUN=1
+EOF
+}
+
+# One tick every 5 minutes; the minute decides which intervals are due. Mirrors the
+# original crontab: 5 always, 15 on the quarter, 60 on the hour (after a Dragonite
+# log rotation), 1440 at midnight, 10080 on Monday 00:10.
+tick() {
+  local min hour dow
+  exec 9> "$TMP_DIR/tick.lock"
+  if ! flock -w 240 9; then
+    log "[$(now)] tick skipped: previous tick still running"
+    return 1
+  fi
+  min=$(( 10#$(date +%M) / 5 * 5 ))
+  hour=$(( 10#$(date +%H) ))
+  dow=$(date +%u)
+
+  (( hour == 0 && min == 0 )) && log_day_header
+  if (( min == 0 )) && is_true "$dragonite_parse_log"; then
+    timed "drago log rotation requested" request_logrotate
+  fi
+  run_interval 5
+  (( min % 15 == 0 ))              && run_interval 15
+  (( min == 0 ))                   && run_interval 60
+  (( hour == 0 && min == 0 ))      && run_interval 1440
+  (( dow == 1 && hour == 0 && min == 10 )) && run_interval 10080
+  return 0
+}
+
+check_all() {
+  local ok=true
+  echo "config:        $BLISSEY_CONFIG"
+  echo "data dir:      $BLISSEY_DATA_DIR"
+  check_deps
+  echo -n "stats db:      $database_stats@$database_host:$database_port ... "
+  if mysql_blissey -NB -e "select 1" > /dev/null; then echo ok; else echo FAILED; ok=false; fi
+  echo -n "dragonite db:  $database_dragonite@$database_host:$database_port ... "
+  if mysql_dragonite -NB -e "select 1" > /dev/null; then echo ok; else echo FAILED; ok=false; fi
+  echo -n "scanner db:    $database_golbat@$(scanner_host):$database_port ... "
+  if mysql_scanner -NB -e "select 1" > /dev/null; then echo ok; else echo FAILED; ok=false; fi
+  if is_true "$geofences_use_koji"; then
+    echo -n "koji db:       $database_koji@$database_host:$database_port ... "
+    if _mysql "$database_host" "$database_koji" -NB -e "select 1" > /dev/null; then echo ok; else echo FAILED; ok=false; fi
+  fi
+  if is_multi; then
+    echo -n "central db:    $multi_instance_database@$database_host:$database_port as $multi_instance_user ($multi_instance_role) ... "
+    if mysql_multi -NB -e "select 1" > /dev/null; then echo ok; else echo FAILED; ok=false; fi
+  fi
+  if is_true "$dragonite_parse_log"; then
+    echo -n "dragonite log: $dragonite_log_dir/dragonite.log ... "
+    if [[ -f "$dragonite_log_dir/dragonite.log" ]]; then echo ok; else echo "not found (mount or log_dir wrong?)"; fi
+  fi
+  if is_true "$rotom_outage_report"; then
+    echo -n "rotom api:     $rotom_api_host:$rotom_api_port ... "
+    if curl -s --max-time 5 -o /dev/null "$rotom_api_host:$rotom_api_port/api/status"; then echo ok; else echo unreachable; fi
+  fi
+  $ok || die "check failed"
+  echo "All good."
+}
+
+print_crontab() {
+  cat <<EOF
+# Blissey: one tick every 5 minutes decides which intervals (5/15/60/1440/10080) are due
+*/5 * * * * $BLISSEY_ROOT/bin/blissey tick
+EOF
+}
+
+command=${1:-help}
+shift || true
+
+case "$command" in
+  setup)
+    load_config; check_deps; setup_all ;;
+  geofences)
+    load_config; check_deps; geofences_update ;;
+  check)
+    load_config; check_all ;;
+  run)
+    [[ $# -eq 1 ]] || die "usage: blissey run <5|15|60|1440|10080>"
+    load_config; redirect_stderr_to_log; run_interval "$1" ;;
+  tick)
+    load_config; redirect_stderr_to_log; tick ;;
+  logrotate)
+    load_config; request_logrotate ;;
+  crontab)
+    print_crontab ;;
+  migrate-config)
+    [[ $# -eq 1 ]] || die "usage: blissey migrate-config <config.ini>"
+    migrate_config_ini "$1" ;;
+  help|-h|--help)
+    usage ;;
+  *)
+    usage >&2; exit 2 ;;
+esac

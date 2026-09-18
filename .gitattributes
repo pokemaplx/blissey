@@ -1,0 +1,9 @@
+# Everything runs on Linux (host cron or Docker): always check out text files with LF,
+# even on Windows with core.autocrlf=true, so shell scripts and SQL copied into the image work.
+* text=auto eol=lf
+*.sh text eol=lf
+bin/blissey text eol=lf
+*.sql text eol=lf
+*.json text eol=lf
+*.png binary
+*.jpg binary

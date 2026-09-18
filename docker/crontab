@@ -1,0 +1,4 @@
+# Blissey schedule (supercronic). One tick every 5 minutes; the tick itself decides which
+# intervals are due (5 always, 15 on the quarter hour, 60 on the hour, 1440 at midnight,
+# 10080 on Monday 00:10).
+*/5 * * * * /blissey/bin/blissey tick
