@@ -35,7 +35,7 @@ def read_config(path):
 
 
 def feature_collection(config, project):
-    url = f"{config['api_url'].rstrip('/')}/api/v1/geofence/featureCollection/{project}"
+    url = f"{config['api_url'].rstrip('/')}/api/v1/geofence/feature-collection/{project}"
     response = requests.get(
         url,
         params={"ignoremanualparent": "true", "parent": "true"},
