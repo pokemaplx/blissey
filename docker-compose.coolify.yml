@@ -1,0 +1,19 @@
+# Compose file for a Coolify deployment (General -> "Docker Compose Location":
+# /docker-compose.coolify.yml). Coolify ignores ${VAR} in volume paths and rewrites relative
+# ones into its own application folder, so the host paths are written here explicitly.
+#
+# - The container joins Coolify's network: enable "Connect To Predefined Network" so that
+#   [database] host and the Rotom/Dragonite api_host can be the container names of the
+#   scanner stack (or use the host IP with published ports).
+# - config.toml must exist on the host before the first deploy (a missing file becomes a
+#   directory). Alternatively "Convert To File" on that storage and paste the content in the UI.
+services:
+  blissey:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - /home/pokelx/blissey/config.toml:/blissey/config.toml:ro
+      - /home/pokelx/blissey/data:/blissey/data
+      - /home/pokelx/unown/logs:/dragonite/logs:ro
+      # container uses the host's timezone (must match the database server)
+      - /etc/localtime:/etc/localtime:ro
