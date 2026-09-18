@@ -8,6 +8,7 @@
 #   blissey tick        cron entry point: runs every interval that is due at this minute
 #   blissey logrotate   ask Dragonite to rotate its log
 #   blissey crontab     print the crontab line for manual (non-Docker) installs
+#   blissey health      exit 0 when the database answers and a tick ran in the last 15 minutes
 #   blissey migrate-config <config.ini>   print the config.toml equivalent of an old config.ini
 
 BLISSEY_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
@@ -31,6 +32,7 @@ Usage: blissey <command>
   tick         cron entry point, decides which intervals are due (every 5 minutes)
   logrotate    request a Dragonite log rotation
   crontab      print the crontab line for a manual install
+  health       exit 0 when the database answers and a tick ran in the last 15 minutes
   migrate-config <config.ini>
                print the config.toml equivalent of an old config.ini
 
@@ -61,7 +63,28 @@ tick() {
   (( min == 0 ))                   && run_interval 60
   (( hour == 0 && min == 0 ))      && run_interval 1440
   (( dow == 1 && hour == 0 && min == 10 )) && run_interval 10080
+  date +%s > "$TMP_DIR/last_tick"   # read by `blissey health`
   return 0
+}
+
+# Container health: config loads, the stats database answers and a tick completed in the
+# last 15 minutes (3 cycles). Exit code 1 = unhealthy.
+health() {
+  local stamp="$TMP_DIR/last_tick" age
+  if ! mysql_blissey -NB -e "select 1" > /dev/null 2>&1; then
+    echo "unhealthy: stats database not reachable"
+    return 1
+  fi
+  if [[ ! -f "$stamp" ]]; then
+    echo "unhealthy: no tick completed yet"
+    return 1
+  fi
+  age=$(( $(date +%s) - $(cat "$stamp") ))
+  if (( age > 900 )); then
+    echo "unhealthy: last tick completed ${age}s ago"
+    return 1
+  fi
+  echo "ok: last tick completed ${age}s ago"
 }
 
 check_all() {
@@ -124,6 +147,8 @@ case "$command" in
     load_config; request_logrotate ;;
   crontab)
     print_crontab ;;
+  health)
+    load_config; health ;;
   migrate-config)
     [[ $# -eq 1 ]] || die "usage: blissey migrate-config <config.ini>"
     migrate_config_ini "$1" ;;

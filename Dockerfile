@@ -30,4 +30,8 @@ ENV PATH="/blissey/bin:${PATH}" \
 
 VOLUME ["/blissey/data"]
 
+# healthy = config loads, database answers, a tick completed in the last 15 minutes;
+# the start period covers the wait for the first */5 tick
+HEALTHCHECK --interval=60s --timeout=20s --start-period=6m --retries=3 CMD ["/blissey/bin/blissey", "health"]
+
 ENTRYPOINT ["/blissey/docker/entrypoint.sh"]

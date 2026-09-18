@@ -263,6 +263,7 @@ to `all` in the central database; per-area detail stays in each instance's own s
 | `logrotate` | Ask Dragonite to rotate its log |
 | `crontab` | Print the crontab line for a manual install |
 | `migrate-config <config.ini>` | Print the `config.toml` equivalent of an old `config.ini` |
+| `health` | Exit 0 when the config loads, the stats database answers and a tick completed in the last 15 minutes (the Docker `HEALTHCHECK`) |
 
 Every step writes a line `[start] [stop] [duration] name` to `data/logs/log_YYYYMM.log`
 (`FAILED (rc=N)` when it errored; stderr of the failing command is in the same file).
