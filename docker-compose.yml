@@ -11,10 +11,11 @@ services:
     # [database] host and the Rotom/Dragonite api_host to the container names. Enable
     # network_mode: host to mirror a manual install (everything on 127.0.0.1).
     # network_mode: host
-    environment:
-      # must match the timezone of the database server (all buckets are computed from now());
-      # alternatively mount the host's /etc/localtime (see below) and drop this variable
-      # TZ: ${TZ:-UTC}
+    # Timezone: the /etc/localtime mount below copies the host's zone. It must match the
+    # database server (all buckets are computed from now()). To set it explicitly instead,
+    # drop that mount and use:
+    # environment:
+    #   TZ: Europe/Lisbon
     volumes:
       # config.toml on the host
       - ${BLISSEY_CONFIG_PATH:-./config.toml}:/blissey/config.toml:ro

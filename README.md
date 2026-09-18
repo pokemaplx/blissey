@@ -94,12 +94,14 @@ tables and procedures (idempotent) and starts the scheduler.
 Things to know:
 
 - `.env` holds the per-host settings (the same names work as environment variables in
-  Coolify/Portainer): `TZ` must be the **same timezone as your database server** (all 5 minute
-  buckets are computed from the current time); `BLISSEY_CONFIG_PATH`, `BLISSEY_DATA_PATH` and
-  `DRAGONITE_LOGS` are the host paths of `config.toml`, the data folder (logs, temp files,
-  backups) and Dragonite's log folder. The log folder is mounted read-only at
-  `/dragonite/logs`, the default `[dragonite] log_dir`; not parsing the log? Set
-  `parse_log = false` and drop that volume.
+  Coolify/Portainer): `BLISSEY_CONFIG_PATH`, `BLISSEY_DATA_PATH` and `DRAGONITE_LOGS` are the
+  host paths of `config.toml`, the data folder (logs, temp files, backups) and Dragonite's log
+  folder. The log folder is mounted read-only at `/dragonite/logs`, the default
+  `[dragonite] log_dir`; not parsing the log? Set `parse_log = false` and drop that volume.
+- Timezone: the compose file mounts the host's `/etc/localtime`, so the container uses the
+  host's zone; it must be the **same timezone as your database server** (all 5 minute buckets
+  are computed from the current time). To pin it explicitly, replace that mount by
+  `environment: TZ: <zone>`.
 - The container joins the compose network, so `[database] host` and the Rotom/Dragonite
   `api_host` must be reachable from there (container names when they run in Docker on the same
   network, see the commented `networks` block). Uncomment `network_mode: host` to mirror a

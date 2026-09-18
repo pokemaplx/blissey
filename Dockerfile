@@ -23,10 +23,10 @@ COPY tools/ tools/
 COPY docker/ docker/
 RUN chmod +x bin/blissey docker/entrypoint.sh tools/discord.sh
 
+# no TZ here on purpose: it would override a mounted /etc/localtime (set TZ in compose instead)
 ENV PATH="/blissey/bin:${PATH}" \
     BLISSEY_LOG_STDOUT=1 \
-    BLISSEY_DATA_DIR=/blissey/data \
-    TZ=UTC
+    BLISSEY_DATA_DIR=/blissey/data
 
 VOLUME ["/blissey/data"]
 
