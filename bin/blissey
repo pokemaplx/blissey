@@ -86,6 +86,9 @@ check_all() {
   if is_true "$dragonite_parse_log"; then
     echo -n "dragonite log: $dragonite_log_dir/dragonite.log ... "
     if [[ -f "$dragonite_log_dir/dragonite.log" ]]; then echo ok; else echo "not found (mount or log_dir wrong?)"; fi
+    # any HTTP answer means the API is reachable (no real request: a log rotation would lose lines)
+    echo -n "dragonite api: http://$dragonite_api_host:$dragonite_api_port ... "
+    if curl -s --max-time 5 -o /dev/null "http://$dragonite_api_host:$dragonite_api_port/"; then echo ok; else echo "unreachable (hourly log rotation will fail)"; fi
   fi
   if is_true "$rotom_outage_report"; then
     echo -n "rotom api:     $rotom_api_host:$rotom_api_port ... "
