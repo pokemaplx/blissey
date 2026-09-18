@@ -1,26 +1,29 @@
-# Settings that differ per host (timezone, where dragonite.log lives) come from a .env file
-# next to this compose file: cp .env.example .env
+# Host-specific settings (timezone, where config.toml / data / dragonite.log live on the host)
+# come from a .env file next to this compose file (cp .env.example .env) or, on platforms like
+# Coolify, from the environment variables of the application.
 services:
   blissey:
     build: .
     image: blissey:latest
     container_name: blissey
     restart: unless-stopped
-    # host networking mirrors a manual install: config.toml can keep host = "127.0.0.1" and
-    # the Rotom/Dragonite APIs on localhost. To reach a MariaDB that only exists inside another
-    # compose stack, comment this out and use the "networks" block below instead.
-    network_mode: host
+    # Without host networking the container joins the compose/Coolify network: set
+    # [database] host and the Rotom/Dragonite api_host to the container names. Enable
+    # network_mode: host to mirror a manual install (everything on 127.0.0.1).
+    # network_mode: host
     environment:
       # must match the timezone of the database server (all buckets are computed from now());
       # alternatively mount the host's /etc/localtime (see below) and drop this variable
-      TZ: ${TZ:-UTC}
+      # TZ: ${TZ:-UTC}
     volumes:
-      - ./config.toml:/blissey/config.toml:ro
-      - ./data:/blissey/data
+      # config.toml on the host
+      - ${BLISSEY_CONFIG_PATH:-./config.toml}:/blissey/config.toml:ro
+      # logs, temp files and daily backups
+      - ${BLISSEY_DATA_PATH:-./data}:/blissey/data
       # Dragonite's log folder (dragonite.log + rotated dragonite-*.gz), read-only at the
-      # default [dragonite] log_dir. Set DRAGONITE_LOGS in .env.
+      # default [dragonite] log_dir
       - ${DRAGONITE_LOGS:-/opt/dragonite/logs}:/dragonite/logs:ro
-      # - /etc/localtime:/etc/localtime:ro
+      - /etc/localtime:/etc/localtime:ro
     # networks:
     #   - pogo
 #

@@ -93,15 +93,17 @@ tables and procedures (idempotent) and starts the scheduler.
 
 Things to know:
 
-- `docker-compose.yml` uses `network_mode: host`, so `dbip=127.0.0.1` and the Rotom/Dragonite
-  API addresses work exactly as on a manual install. If your MariaDB is only reachable inside
-  another compose network, switch to the commented `networks` block and use the container name
-  as `dbip`.
-- `.env` holds the per-host settings: `TZ` must be the **same timezone as your database
-  server** (all 5 minute buckets are computed from the current time) and `DRAGONITE_LOGS` is
-  the host folder with `dragonite.log`, mounted read-only at `/dragonite/logs` (the default
-  `[dragonite] log_dir`). Not parsing the log? Set `parse_log = false` and remove the volume.
-- `./data` holds logs (`data/logs/log_YYYYMM.log`), temp files and backups.
+- `.env` holds the per-host settings (the same names work as environment variables in
+  Coolify/Portainer): `TZ` must be the **same timezone as your database server** (all 5 minute
+  buckets are computed from the current time); `BLISSEY_CONFIG_PATH`, `BLISSEY_DATA_PATH` and
+  `DRAGONITE_LOGS` are the host paths of `config.toml`, the data folder (logs, temp files,
+  backups) and Dragonite's log folder. The log folder is mounted read-only at
+  `/dragonite/logs`, the default `[dragonite] log_dir`; not parsing the log? Set
+  `parse_log = false` and drop that volume.
+- The container joins the compose network, so `[database] host` and the Rotom/Dragonite
+  `api_host` must be reachable from there (container names when they run in Docker on the same
+  network, see the commented `networks` block). Uncomment `network_mode: host` to mirror a
+  manual install where everything is on `127.0.0.1`.
 - Fences: with `use_koji = false` insert your fences into table `geofences` (see
   [Geofences](#geofences)) and run `docker compose exec blissey blissey geofences` once.
 - Any CLI command can be run inside the container: `docker compose exec blissey blissey check`.
